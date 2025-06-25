@@ -1,0 +1,1820 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+_tools/
+  generateFontData.js
+.github/
+  workflows/
+    ci.yml
+docs/
+  github_pages_auto_deploy.md
+src/
+  _data/
+    fontdata.json
+    site.js
+  _includes/
+    animation.html
+    character-grid.html
+    interactive-controls.html
+  _layouts/
+    default.html
+  css/
+    animation.css
+    character-grid.css
+    fonts.css
+    generic.css
+    interactive-controls.css
+    layout.css
+    loading.css
+    main.css
+    variable-support.css
+  fonts/
+    README.md
+  js/
+    assets.js
+    main.js
+  .eslintrc.js
+  index.html
+.editorconfig
+.eleventy.js
+.eleventyignore
+.eslintignore
+.eslintrc.js
+.gitignore
+.prettierignore
+.stylelintrc.js
+.tool-versions
+AUTHORS
+CONTRIBUTORS
+LICENSE
+package.json
+postcss.config.js
+README.md
+webpack.config.js
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="_tools/generateFontData.js">
+// Copyright 2019 Google LLC
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+// 	https://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+const fs = require("fs");
+const util = require("util");
+const path = require("path");
+const {
+	parseFontFile,
+	buildStylesheet,
+	getSelector,
+	suggestFontStyle
+} = require("specimen-skeleton-support");
+
+const srcDirectory = path.resolve(__dirname, "../", "src");
+const fontsDirectory = path.resolve(srcDirectory, "fonts");
+const dataDirectory = path.resolve(srcDirectory, "_data/fonts");
+const metaDataPath = path.resolve(srcDirectory, "_data/", "fontdata.json");
+const fontsStylesheetPath = path.resolve(srcDirectory, "css", "fonts.css");
+
+const assert = (condition, message) => {
+	if (!condition) {
+		throw new Error(message);
+	}
+};
+
+const _appendFile = util.promisify(fs.appendFile);
+const _writeFile = util.promisify(fs.writeFile);
+const writeFile = (path, contents, append) => {
+	console.info("Writing", path);
+	if (append) {
+		return _appendFile(path, contents);
+	}
+	return _writeFile(path, contents);
+};
+
+const writeDataFile = async (filename, fontName, data) => {
+	fs.mkdir(path.join(dataDirectory, fontName), { recursive: true }, () => {
+		const dataFilePath = path.join(dataDirectory, fontName, filename);
+		const fileContents = JSON.stringify(data, null, 4);
+		return writeFile(dataFilePath, fileContents);
+	});
+};
+
+const writeDataFiles = async fontData => {
+	const promises = Object.entries(fontData.data).map(([type, data]) => {
+		return writeDataFile(`${type}.json`, getSelector(fontData, true), data);
+	});
+
+	return Promise.all(promises);
+};
+
+const writeStylesheet = async (fontData, fontFilePath) => {
+	const fontUrl = path.relative(
+		path.dirname(fontsStylesheetPath),
+		fontFilePath
+	);
+	let stylesheet = buildStylesheet(fontData, fontUrl).toString();
+	stylesheet += "\n\n";
+	return writeFile(fontsStylesheetPath, stylesheet, true);
+};
+
+const findFontFile = async directory => {
+	const fontFiles = (await util.promisify(fs.readdir)(directory)).filter(
+		f => path.extname(f) == ".woff2"
+	);
+
+	assert(
+		fontFiles.length > 0,
+		`No WOFF2 font files found. Place your WOFF2 fonts in ${path.relative(
+			process.cwd(),
+			directory
+		)}.`
+	);
+
+	const paths = fontFiles.map(fontFile => ({
+		name: path.basename(fontFile, path.extname(fontFile)),
+		path: path.resolve(fontsDirectory, fontFile)
+	}));
+
+	return paths;
+};
+
+const getMetaData = (fontData, fontFile) => {
+	return {
+		name: fontData.name,
+		selector: getSelector(fontData, true),
+		style: suggestFontStyle(fontFile.name)
+	};
+};
+
+const main = async () => {
+	const fontFiles = process.argv[2] || (await findFontFile(fontsDirectory));
+
+	// Clear out old data files
+	console.log("Deleting old data files");
+	fs.rmdirSync(dataDirectory, { recursive: true });
+
+	// Initialise files
+	writeFile(
+		fontsStylesheetPath,
+		`/* Generated by the Specimen Skeleton */\n`
+	);
+
+	let metaData = [];
+	for (const fontFile of fontFiles) {
+		const fontData = await parseFontFile(fontFile.path);
+		metaData.push(await getMetaData(fontData, fontFile));
+		await Promise.all([
+			writeDataFiles(fontData),
+			writeStylesheet(fontData, fontFile.path)
+		]);
+	}
+
+	const fileContents = JSON.stringify(metaData, null, 4);
+	writeFile(metaDataPath, fileContents);
+};
+
+main().catch(e => {
+	process.exitCode = 1;
+	console.error("Failed to generate font data.", e);
+});
+</file>
+
+<file path=".github/workflows/ci.yml">
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Set Node.js
+      uses: actions/setup-node@master
+      with:
+        node-version: 12.x
+
+    - uses: actions/cache@v1
+      with:
+        path: node_modules
+        key: ${{ runner.os }}-node_modules-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-node_modules-
+
+    - name: Install dependencies
+      run: yarn install
+
+    - name: Test
+      run: yarn test
+
+    - name: Build 11ty site
+      run: yarn build
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v1
+      with:
+        name: site
+        path: _site/
+
+  deploy:
+    if: false && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Write deploy key
+      env:
+        DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+      run: |
+        echo "$DEPLOY_KEY" > /tmp/deploy-key
+        chmod 0600 /tmp/deploy-key
+        mkdir -p ~/.ssh
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v1
+      with:
+        name: site
+        path: ./
+
+    - name: Init repo
+      run: |
+        git init
+        git config user.email "deployer@github"
+        git config user.name "Deployer"
+
+    - name: Commit
+      run: |
+        git add .
+        git commit -m "Deploy"
+
+    - name: Push
+      env:
+        GIT_SSH_COMMAND: "ssh -i /tmp/deploy-key"
+      run: |
+        git remote add origin git@github.com:$GITHUB_REPOSITORY.git
+        git push -f origin HEAD:gh-pages
+</file>
+
+<file path="docs/github_pages_auto_deploy.md">
+# GitHub Pages auto deployment
+
+This project includes a GitHub Actions configuration that can automatically
+deploy your specimen site to GitHub Pages.
+
+Follow the following steps to enable it:
+
+1. Generate an SSH deploy key on the command line:
+   ```sh
+   ssh-keygen -t ed25519 -f deploy-key -N ''
+   ```
+2. In GitHub navigate to the repository settings and create a secret named `DEPLOY_KEY`.
+   As value, use the contents of the `deploy-key` file generated in step 1.
+   ![repo-settings](../.github/screenshots/deploy-setup-repo-settings.png)
+3. In GitHub add a deploy key (make sure to `Allow write access`!):
+   ![deploy-key](../.github/screenshots/deploy-setup-deploy-keys.png)
+   As value, use the contents of the `deploy-key.pub` file created in step 1.
+   Make sure `Allow write access` is checked.
+4. Edit `.github/workflows/ci.yml` to enable the deploy step for commits on the `master` branch:
+   ```diff
+      deploy:
+   -    if: false && github.ref == 'refs/heads/master'
+   +    if: github.ref == 'refs/heads/master'
+        runs-on: ubuntu-latest
+        needs: build
+   ```
+5. Done! 🙌
+
+Now whenever you commit on master, your specimen site will automatically be deployed to GitHub pages.
+</file>
+
+<file path="src/_data/fontdata.json">
+[]
+</file>
+
+<file path="src/_data/site.js">
+module.exports = {
+	title: "Specimen Skeleton",
+	description: "A small boilerplate for custom variable font specimen sites!",
+
+	// More info: https://css-tricks.com/essential-meta-tags-social-media/
+	metatags: [
+		{
+			property: "og:title",
+			content: ""
+		},
+		{
+			property: "og:description",
+			content: ""
+		},
+		{
+			property: "og:image",
+			content: ""
+		},
+		{
+			property: "og:url",
+			content: ""
+		},
+		{
+			property: "og:site_name",
+			content: ""
+		},
+		{
+			name: "twitter:card",
+			content: ""
+		},
+		{
+			name: "twitter:image:alt",
+			content: ""
+		}
+	]
+};
+</file>
+
+<file path="src/_includes/animation.html">
+<div class="animation am-i-in-view">
+	I shouldn't animate from red to green when I'm not visible! And my
+	background turns black when I scroll into view.
+</div>
+</file>
+
+<file path="src/_includes/character-grid.html">
+<h2>Charset for {{ fontdata[main_id].name }}</h2>
+
+<!--
+Create a dropdown to select the font that should
+be applied to the character grid.
+-->
+{% if fontdata.length >= 2 %}
+	<select class="character-grid-toggle">
+	{% for font in fontdata %}
+		<option value="{{ font.selector }}" {% if font.selector == main_selector %}selected{% endif %}>
+			{{ font.style }}
+		</option>
+	{% endfor %}
+	</select>
+{% endif %}
+
+<!--
+Draw a grid with the characters of the main font.
+-->
+<div class="character-grid {{ main_selector }}">
+	{% for set in fonts[main_selector].charset %}
+		<!--
+		Skip the separators, we're not interested in those.
+		-->
+		{% if set.category == "Separator" %}
+			{% continue %}
+		{% endif %}
+		<!--
+		Create a title based on (sub)category and script.
+		-->
+		<h3>
+			{{ set.category }}
+			{% if set.subCategory %}
+				{{ set.subCategory }}
+			{% endif %}
+			{% if set.script %}
+				{{ set.script | capitalize }}
+			{% endif %}
+		</h3>
+		<!--
+		Print each char in this category
+		-->
+		<ol class="character-grid-list">
+		{% for char in set.chars %}
+			<li>&#x{{ char }};</li>
+		{% endfor %}
+		</ol>
+	{% endfor %}
+	<div class="character-grid-zoom"></div>
+</div>
+</file>
+
+<file path="src/_includes/interactive-controls.html">
+<div class="interactive-controls">
+	<h2>Axes & Instances for {{ fontdata[main_id].name }}</h2>
+	<ul class="interactive-controls-sliders">
+		<!--
+		Create a slider to control the font size.
+		-->
+		<li>
+			<label for="interactive-controls-fontsize">Size</label>
+			<input
+				type="range"
+				min="9"
+				max="48"
+				value="16"
+				name="font-size"
+				id="interactive-controls-fontsize"
+				step="any"
+				class="interactive-controls-slider"
+			/>
+		</li>
+		<!--
+		If the font has variable axes, also create a sliders
+		for each one of them.
+		-->
+		{% if fonts[main_selector].axes.length != 0 %}
+			{% for axis in fonts[main_selector].axes %}
+			<li>
+				<label for="axis-{{ axis.axis }}">{{ axis.name }}</label>
+				<input
+					type="range"
+					min="{{ axis.min }}"
+					max="{{ axis.max }}"
+					value="{{ axis.default }}"
+					name="{{ axis.axis }}"
+					id="axis-{{ axis.axis }}"
+					step="{{ axis.step | default: 0.1 }}"
+					class="interactive-controls-slider"
+				/>
+			</li>
+			{% endfor %}
+		{% endif %}
+	</ul>
+
+	<!--
+	If the variable font has named instances, create a
+	dropdown so you can try them out.
+	-->
+	{% if fonts[main_selector].instances.length != 0 %}
+		<div>
+			<label for="interactive-controls-instances-select">Instances</label>
+			<select
+				id="interactive-controls-instances-select"
+				class="interactive-controls-instances"
+			>
+				{% for instance in fonts[main_selector].instances %}
+				<option value="{{ instance.axes | json_stringify | escape }}">
+					{{ instance.name }}
+				</option>
+				{% endfor %}
+			</select>
+		</div>
+	{% endif %}
+
+	<!--
+	If there are multiple fonts in this family, we expect
+	them to be styles (e.g. "bold" or "condensed") and
+	we list them here.
+	-->
+	{% if fontdata.length >= 2 %}
+		<div>
+			<label for="interactive-controls-instances-select">Styles</label>
+			<select
+				id="interactive-controls-instances-select"
+				class="interactive-controls-styles"
+			>
+				{% for font in fontdata %}
+				<option value="{{ font.selector }}" {% if font.selector == main_selector %}selected{% endif %}>
+					{{ font.style }}
+				</option>
+				{% endfor %}
+			</select>
+		</div>
+	{% endif %}
+
+	<div class="interactive-controls-text {{ main_selector }}">
+		<h1>Lorem</h1>
+		<p>
+			Ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+			tempor incididunt ut labore et dolore magna aliqua. Est pellentesque
+			elit ullamcorper dignissim cras tincidunt. Consectetur adipiscing
+			elit duis tristique. Odio aenean sed adipiscing diam. Viverra mauris
+			in aliquam sem fringilla ut morbi. Nec nam aliquam sem et. In metus
+			vulputate eu scelerisque. Sed ullamcorper morbi tincidunt ornare
+			massa eget egestas. Venenatis urna cursus eget nunc scelerisque.
+			Habitasse platea dictumst quisque sagittis purus sit amet volutpat
+			consequat. Imperdiet nulla malesuada pellentesque elit eget gravida
+			cum sociis natoque. Laoreet non curabitur gravida arcu. Et magnis
+			dis parturient montes nascetur ridiculus mus mauris vitae. Arcu
+			cursus euismod quis viverra nibh. Adipiscing tristique risus nec
+			feugiat in fermentum posuere urna nec. In hac habitasse platea
+			dictumst quisque sagittis purus sit. Dui faucibus in ornare quam
+			viverra orci sagittis eu volutpat. Vitae auctor eu augue ut lectus
+			arcu bibendum at. Bibendum ut tristique et egestas quis ipsum
+			suspendisse ultrices.
+		</p>
+	</div>
+</div>
+</file>
+
+<file path="src/_layouts/default.html">
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta http-equiv="X-UA-Compatible" content="ie=edge" />
+		<meta name="description" content="{{ site.description }}" />
+		{%- for metatag in site.metatags %}
+		<meta{% for m in metatag %} {{m[0]}}="{{m[1]|escape}}" {% endfor %} />
+		{%- endfor %}
+		<title>
+			{{ site.title or renderData.title or title or metadata.title }}
+		</title>
+		<link
+			rel="stylesheet"
+			href="{% webpackAssetPath '../css/main.css' %}"
+		/>
+		<script defer src="{% webpackAssetPath '../js/main.js' %}"></script>
+	</head>
+
+	<body>
+		{{ content }}
+	</body>
+</html>
+</file>
+
+<file path="src/css/animation.css">
+.animation {
+	transition: background 4s; /* To show effect of adding .in-view class */
+	animation: example-animation 1s infinite alternate;
+	animation-play-state: paused;
+	padding: 3em;
+}
+
+.animation.in-view {
+	background: black;
+	animation-play-state: running;
+}
+
+@keyframes example-animation {
+	from {
+		color: red;
+	}
+
+	to {
+		color: lime;
+	}
+}
+</file>
+
+<file path="src/css/character-grid.css">
+:root {
+	--character-grid-cell: 2rem;
+	--character-grid-font-zize: 2rem;
+	--character-grid-gap: 1rem;
+}
+
+.character-grid-list {
+	list-style-type: none;
+	padding: 0;
+	display: grid;
+	grid-template-columns: repeat(
+		auto-fill,
+		minmax(var(--character-grid-cell), 1fr)
+	);
+	column-gap: var(--character-grid-gap);
+	row-gap: var(--character-grid-gap);
+	font-size: var(--character-grid-font-zize);
+}
+
+.character-grid-list > li {
+	height: var(--character-grid-cell);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.character-grid-zoom {
+	font-size: 100px;
+}
+</file>
+
+<file path="src/css/fonts.css">
+/* Placeholder */
+</file>
+
+<file path="src/css/generic.css">
+/* Generic CSS */
+:root {
+	--page-bg: #fff;
+	--page-text: #000;
+
+	/* Set fallback font for specimen here, e.g. Adobe NotDef */
+	--specimen-fallback-font: "";
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	padding: 0;
+	margin: 0;
+	background: var(--page-bg);
+	color: var(--page-text);
+}
+
+ol,
+ul {
+	list-style-type: none;
+	padding: 0;
+}
+</file>
+
+<file path="src/css/interactive-controls.css">
+.interactive-controls {
+	--label-width: 8em;
+}
+
+.interactive-controls-text {
+	font-size: calc(var(--font-size) * 1px);
+}
+
+.interactive-controls-instances,
+.interactive-controls-sliders li {
+	display: flex;
+}
+
+.interactive-controls label {
+	flex: none;
+	min-width: var(--label-width);
+}
+
+.interactive-controls-instances select,
+.interactive-controls-slider {
+	width: 100%;
+}
+</file>
+
+<file path="src/css/layout.css">
+main {
+	max-width: 50rem;
+	margin: 0 auto;
+	display: none;
+}
+
+.fonts-loaded main {
+	display: block;
+}
+
+h1,
+h2 {
+	color: hotpink;
+}
+</file>
+
+<file path="src/css/loading.css">
+/* Show big fat loading screen, and a message when font failed to load */
+.loading-message {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background: hotpink;
+	font-family: monospace;
+	pointer-events: none;
+	user-select: none;
+}
+
+.loading-message-failed,
+.fonts-loaded .loading-message,
+.fonts-failed .loading-message-loading {
+	display: none;
+}
+
+.fonts-failed .loading-message-failed {
+	display: inline;
+}
+</file>
+
+<file path="src/css/main.css">
+/*
+
+Copyright 2019 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/
+
+@import "./animation.css";
+@import "./character-grid.css";
+@import "./fonts.css";
+@import "./generic.css";
+@import "./interactive-controls.css";
+@import "./layout.css";
+@import "./loading.css";
+@import "./variable-support.css";
+</file>
+
+<file path="src/css/variable-support.css">
+.variable-support-message {
+	display: block;
+}
+
+@supports (font-variation-settings: normal) {
+	.variable-support-message {
+		display: none;
+	}
+}
+</file>
+
+<file path="src/fonts/README.md">
+Put your WOFF2 font files here!
+</file>
+
+<file path="src/js/assets.js">
+/**
+ * This file automatically requires every supported image in `src/img`.
+ */
+const requireAll = r => r.keys().forEach(r);
+requireAll(require.context("../img/?external", true, /\.(png|jpg|svg)$/));
+</file>
+
+<file path="src/js/main.js">
+// Copyright 2019 Google LLC
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     https://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import "./assets.js";
+import fontData from "../_data/fontdata.json";
+import FontFaceObserver from "fontfaceobserver";
+
+const fontTimeOut = 5000; // In milliseconds
+const fontClasses = fontData.map(f => f.selector);
+
+// Generic: throttle
+const throttle = (fn, wait) => {
+	let last, queue;
+
+	return function runFn(...args) {
+		const now = Date.now();
+		queue = clearTimeout(queue);
+
+		if (!last || now - last >= wait) {
+			fn.apply(null, args);
+			last = now;
+		} else {
+			queue = setTimeout(runFn.bind(null, ...args), wait - (now - last));
+		}
+	};
+};
+
+// Set up FontFaceObserver
+let observers = [];
+for (const fd of fontData) {
+	const font = new FontFaceObserver(fd.name);
+	observers.push(font.load(null, fontTimeOut));
+}
+
+Promise.all(observers).then(
+	() => {
+		// All fonts have loaded
+		document.documentElement.classList.add("fonts-loaded");
+	},
+	() => {
+		// One or more fonts didn't load
+		document.documentElement.classList.add("fonts-failed");
+	}
+);
+
+// Interactive controls (sliders that tweak axes)
+const interactives = document.querySelectorAll(".interactive-controls");
+for (const interactive of interactives) {
+	const area = interactive.querySelector(".interactive-controls-text");
+	const styles = interactive.querySelector(".interactive-controls-styles");
+	const sliders = interactive.querySelectorAll(
+		".interactive-controls-slider"
+	);
+	const instances = interactive.querySelector(
+		".interactive-controls-instances"
+	);
+
+	const varset = (name, value) => {
+		area.style.setProperty(`--${name}`, value);
+	};
+
+	for (const slider of sliders) {
+		// Apply initial axis value to text area
+		varset(slider.name, slider.value);
+		slider.oninput = e => {
+			// Set new axis value to text area
+			varset(e.target.name, e.target.value);
+			// Unselect named instance dropdown
+			// Optionally, see if current axes match instance and select that
+			if (instances) {
+				instances.selectedIndex = -1;
+			}
+		};
+	}
+
+	if (instances) {
+		instances.onchange = e => {
+			const axes = JSON.parse(
+				e.target.options[e.target.selectedIndex].value
+			);
+			for (const axis in axes) {
+				// Set new axis value on slider
+				interactive.querySelector(`[name=${axis}]`).value = axes[axis];
+				// Apply new axis value to text area
+				varset(axis, axes[axis]);
+			}
+		};
+	}
+	if (styles) {
+		styles.onchange = e => {
+			area.classList.remove(...fontClasses);
+			area.classList.add(e.target.value);
+		};
+	}
+}
+
+// Watch if .am-i-in-view elements are visible on screen
+// and apply a class accordingly
+if ("IntersectionObserver" in window) {
+	// eslint-disable-next-line compat/compat
+	const obs = new IntersectionObserver(els => {
+		els.forEach(el => {
+			el.intersectionRatio > 0
+				? el.target.classList.add("in-view")
+				: el.target.classList.remove("in-view");
+		});
+	});
+
+	const elements = document.querySelectorAll(".am-i-in-view");
+	elements.forEach(el => {
+		obs.observe(el);
+	});
+}
+
+// Character grid
+const grid = document.querySelector(".character-grid");
+const gridzoom = document.querySelector(".character-grid-zoom");
+const gridtoggle = document.querySelector(".character-grid-toggle");
+grid.onmousemove = throttle(e => {
+	if (e.target.tagName === "LI") {
+		gridzoom.innerHTML = e.target.innerHTML;
+	}
+}, 100);
+if (gridtoggle) {
+	gridtoggle.onchange = e => {
+		grid.classList.remove(...fontClasses);
+		grid.classList.add(e.target.value);
+	};
+}
+</file>
+
+<file path="src/.eslintrc.js">
+module.exports = {
+	root: true,
+	env: {
+		browser: true,
+		es6: true,
+		commonjs: true
+	},
+	globals: {
+		process: true
+	},
+	plugins: ["compat", "prettier"],
+	extends: ["eslint:recommended"],
+	parserOptions: {
+		sourceType: "module",
+		ecmaFeatures: {
+			modules: true,
+			experimentalObjectRestSpread: true
+		}
+	},
+	rules: {
+		"prettier/prettier": "error",
+		"compat/compat": "error"
+	}
+};
+</file>
+
+<file path="src/index.html">
+---
+layout: default.html
+---
+
+<div class="loading-message">
+	<span class="loading-message-loading">Loading...</span>
+	<span class="loading-message-failed">Failed :-(</span>
+</div>
+
+<div class="variable-support-message">
+	Your browser doesn't do variable fonts :-(
+</div>
+
+<main>
+	<!--
+	You have two variables at your disposal:
+
+	fontdata: this is all the data in fontdata.json
+	fonts: these are additional details about the font,
+	       like charset, variable axes and instances.
+	-->
+
+	<!--
+	See fontdata.json and change the order of the fonts to
+	match the family structure. E.g. light → regular → bold.
+
+	You can specify which font is the "main" font (usually
+	the "regular" style), by assigning its ID to the main_id
+	variable. Note that counting starts at 0!
+	-->
+	{% assign main_id = 0 %}
+	{% assign main_selector = fontdata[main_id].selector %}
+
+	<h1>Specimen Skeleton for {{ fontdata[main_id].name }}</h1>
+
+	<h2>Specimen Skeleton knows these fonts:</h2>
+	<ul>
+		{% for font in fontdata %}
+			<li class="{{ font.selector }}">
+				{{ font.name }}
+				{{ font.style }}
+				{{ font.selector }}
+				{{ fonts[font.selector].axes.length }} axes
+				{{ fonts[font.selector].instances.length }} instances
+				{% if font.selector == main_selector %}
+				 (Main font)
+				{% endif %}
+			</li>
+		{% endfor %}
+	</ul>
+
+	<hr>
+
+	{% include interactive-controls.html %}
+
+	<hr />
+
+	{% include character-grid.html %}
+
+	<hr />
+
+	{% include animation.html %}
+</main>
+</file>
+
+<file path=".editorconfig">
+root = true
+
+[*]
+indent_style = tab
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.md]
+trim_trailing_whitespace = false
+</file>
+
+<file path=".eleventy.js">
+const fs = require("fs");
+const path = require("path");
+const util = require("util");
+const readFile = util.promisify(fs.readFile);
+const htmlmin = require("html-minifier");
+
+const inputDir = path.resolve(__dirname, "./src");
+
+const webpackAssetPath = async name => {
+	const manifestData = await readFile(
+		path.resolve(inputDir, "_includes", ".webpack", "manifest.json")
+	);
+	const manifest = JSON.parse(manifestData);
+
+	const assetPath = manifest[name];
+	if (assetPath == null) {
+		throw new Error(
+			`Unknown Webpack asset requested: ${name}. Check .webpack/manifest.json.`
+		);
+	}
+
+	return assetPath;
+};
+
+const webpackAssetContents = async name => {
+	const assetName = await webpackAssetPath(name);
+	const filePath = path.resolve(__dirname, "_site", assetName);
+
+	return readFile(filePath);
+};
+
+const relativePathTag = processPath => liquidEngine => {
+	return {
+		parse: function(tagToken) {
+			this.arg = tagToken.args;
+			this.templateFile = tagToken.file;
+		},
+		render: async function(scope) {
+			const fileParam =
+				liquidEngine.evalValue(this.arg, scope) || this.arg;
+
+			const resolvedFile = path.resolve(
+				path.dirname(this.templateFile),
+				fileParam
+			);
+
+			const srcRelativePath = path.relative(inputDir, resolvedFile);
+			return processPath(srcRelativePath);
+		}
+	};
+};
+
+module.exports = eleventyConfig => {
+	eleventyConfig.setUseGitIgnore(false);
+
+	eleventyConfig.addFilter("json_stringify", JSON.stringify);
+
+	eleventyConfig.addLiquidTag(
+		"webpackAssetPath",
+		relativePathTag(webpackAssetPath)
+	);
+	eleventyConfig.addLiquidTag(
+		"includeWebpackAsset",
+		relativePathTag(webpackAssetContents)
+	);
+
+	if (process.env.ELEVENTY_ENV === "production") {
+		eleventyConfig.addTransform("htmlmin", (content, outputPath) => {
+			if (outputPath.endsWith(".html")) {
+				let minified = htmlmin.minify(content, {
+					useShortDoctype: true,
+					removeComments: true,
+					collapseWhitespace: true
+				});
+				return minified;
+			}
+
+			return content;
+		});
+	}
+
+	return {
+		dir: {
+			input: "./src",
+			layouts: "_layouts"
+		}
+	};
+};
+</file>
+
+<file path=".eleventyignore">
+node_modules/
+README.md
+_tools/
+</file>
+
+<file path=".eslintignore">
+_site/
+</file>
+
+<file path=".eslintrc.js">
+module.exports = {
+	plugins: ["prettier"],
+	extends: ["eslint:recommended", "plugin:node/recommended"],
+	rules: {
+		"prettier/prettier": "error",
+		"node/no-unpublished-require": "off"
+	}
+};
+</file>
+
+<file path=".gitignore">
+.DS_Store
+_site/
+node_modules/
+src/_includes/.webpack
+</file>
+
+<file path=".prettierignore">
+src/_includes/.webpack
+*.html
+</file>
+
+<file path=".stylelintrc.js">
+module.exports = {
+	extends: ["stylelint-config-standard", "stylelint-config-prettier"],
+	plugins: ["stylelint-no-unsupported-browser-features"],
+	rules: {
+		"selector-id-pattern": [
+			"^([a-z][a-z0-9]*)(-[a-z0-9]+)*$",
+			{
+				message:
+					"Selector should use lowercase and separate words with hyphens (selector-class-pattern)"
+			}
+		],
+		"selector-class-pattern": [
+			"^([a-z][a-z0-9]*)(-[a-z0-9]+)*$",
+			{
+				message:
+					"Selector should use lowercase and separate words with hyphens (selector-class-pattern)"
+			}
+		],
+		indentation: "tab",
+		"selector-pseudo-class-no-unknown": [
+			true,
+			{
+				ignorePseudoClasses: ["global"]
+			}
+		],
+		"plugin/no-unsupported-browser-features": [
+			true,
+			{
+				severity: "warning",
+				ignore: ["font-unicode-range", "css-resize", "css-appearance"]
+			}
+		]
+	}
+};
+</file>
+
+<file path=".tool-versions">
+nodejs 12.13.1
+</file>
+
+<file path="AUTHORS">
+# This is the official list of project authors for copyright purposes.
+# This file is distinct from the CONTRIBUTORS.txt file.
+# See the latter for an explanation.
+#
+# Names should be added to this file as:
+# Name or Organization <email address>
+
+Google Inc.
+</file>
+
+<file path="CONTRIBUTORS">
+# This is the list of people who have contributed to this project,
+# and includes those not listed in AUTHORS.txt because they are not
+# copyright authors. For example, company employees may be listed
+# here because their company holds the copyright and is listed there.
+#
+# When adding J Random Contributor's name to this file, either J's
+# name or J's organization's name should be added to AUTHORS.txt
+#
+# Names should be added to this file as:
+# Name <email address>
+
+Roel Nieskens <roel@pixelambacht.nl>
+Pascal Widdershoven <pascal@kabisa.nl>
+Guido Theelen <guido@kabisa.nl>
+</file>
+
+<file path="LICENSE">
+Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+</file>
+
+<file path="package.json">
+{
+	"name": "specimen-skeleton",
+	"private": true,
+	"version": "1.0.0",
+	"main": "index.js",
+	"license": "MIT",
+	"scripts": {
+		"clean": "rimraf ./_site",
+		"build": "cross-env NODE_ENV=production ELEVENTY_ENV=production run-s clean 'build:*'",
+		"build:webpack": "webpack",
+		"build:eleventy": "eleventy",
+		"start": "cross-env NODE_ENV=development ELEVENTY_ENV=development npm-run-all clean build:webpack --parallel 'start:*'",
+		"start:webpack": "webpack -w",
+		"start:eleventy": "eleventy --serve",
+		"prettier": "prettier '{src/**/*.{js,css,json,html},*.js,*.json,*.html}'",
+		"stylelint": "stylelint 'src/css/**/*.css'",
+		"eslint": "eslint .",
+		"lint": "run-s 'prettier --check' eslint stylelint",
+		"test": "run-s lint",
+		"fontdata": "node _tools/generateFontData.js"
+	},
+	"browserslist": [
+		"edge >= 17",
+		"firefox >= 62",
+		"chrome >= 66",
+		"safari >= 11",
+		"opera >= 53",
+		"ios_saf >= 11.2",
+		"samsung >= 8.2"
+	],
+	"devDependencies": {
+		"@11ty/eleventy": "^0.9.0",
+		"@babel/core": "^7.7.4",
+		"@babel/preset-env": "^7.7.4",
+		"autoprefixer": "^9.7.2",
+		"babel-eslint": "^10.0.3",
+		"babel-loader": "^8.0.6",
+		"cross-env": "^6.0.3",
+		"css-loader": "^3.2.0",
+		"cssnano": "^4.1.10",
+		"eslint": "^6.7.2",
+		"eslint-plugin-compat": "^3.3.0",
+		"eslint-plugin-node": "^11.0.0",
+		"eslint-plugin-prettier": "^3.1.1",
+		"file-loader": "^5.0.2",
+		"html-minifier": "^4.0.0",
+		"husky": "^3.1.0",
+		"lint-staged": "^9.5.0",
+		"mini-css-extract-plugin": "^0.8.0",
+		"npm-run-all": "^4.1.5",
+		"postcss": "^8.2.10",
+		"postcss-import": "^12.0.1",
+		"postcss-loader": "^3.0.0",
+		"prettier": "^1.19.1",
+		"rimraf": "^3.0.0",
+		"specimen-skeleton-support": "https://github.com/kabisa/specimen-skeleton-support.git#master",
+		"stylelint": "^12.0.0",
+		"stylelint-config-prettier": "^7.0.0",
+		"stylelint-config-standard": "^19.0.0",
+		"stylelint-no-unsupported-browser-features": "^4.0.0",
+		"svg-url-loader": "^3.0.3",
+		"url-loader": "^3.0.0",
+		"webpack": "^4.41.2",
+		"webpack-cli": "^3.3.10",
+		"webpack-manifest-plugin": "v3.0.0-rc.0"
+	},
+	"lint-staged": {
+		"*.{js,json,html,css}": [
+			"prettier --write",
+			"git add"
+		],
+		"*.js": [
+			"eslint"
+		],
+		"*.css": [
+			"stylelint"
+		]
+	},
+	"husky": {
+		"hooks": {
+			"pre-commit": "lint-staged"
+		}
+	},
+	"dependencies": {
+		"fontfaceobserver": "^2.1.0"
+	},
+	"engines": {
+		"node": ">=12"
+	}
+}
+</file>
+
+<file path="postcss.config.js">
+const cssnano = () => {
+	return require("cssnano")({
+		preset: "default"
+	});
+};
+
+module.exports = {
+	plugins: [
+		require("postcss-import"),
+		require("autoprefixer"),
+		process.env.NODE_ENV === "production" ? cssnano() : false
+	]
+};
+</file>
+
+<file path="README.md">
+<p align="center">
+	<img width="320" height="320" src="https://user-images.githubusercontent.com/4570664/74532263-0db14500-4f2f-11ea-96e9-49bcb8699ebb.png">
+</p>
+<h1 align="center">Specimen Skeleton</h1>
+
+## Project setup & development
+
+This project requires Node.js >= 12 and [yarn](https://yarnpkg.com/).
+
+To get started, run the following commands from the root of the repo:
+
+- `yarn install`
+- `yarn fontdata` - this will generate data files for the fonts in `src/fonts`
+- `yarn start` - this will start the local development server, view at http://localhost:8080.
+
+The site will [automatically](./.github/workflows/ci.yml) be re-built and deployed on Github Pages every time the master branch is updated.
+
+Specimen Skeleton uses external tooling from [Specimen Skeleton Support](https://github.com/kabisa/specimen-skeleton-support/), so we can add or update features without you having to update your specimen!
+
+## What this is
+
+Specimen Skeleton is an [Eleventy-based](https://www.11ty.dev/) specimen _boilerplate_. It helps you get a basic site up and running quickly, and offers you a few interactive elements to build your demos from.
+
+It will analyse your variable font and generate the CSS necessary _and_ all the sliders, so you'll hit the ground running!
+
+## What this isn't
+
+A full-blown specimen generator like [Specimen Tools](https://github.com/graphicore/specimenTools). We did some groundwork, but it's up to you to build the site!
+
+## Checklist / getting started
+
+- Put your WOFF2 fonts in `src/fonts` and run `yarn fontdata`.
+- Configure the site in `src/_data/site.js`.
+- In JavaScript, respond to fail/success of loading the font in the `FontFaceObserver` code.
+- In HTML/CSS, use the `.variable-support` element to communicate when variable fonts aren't supported.
+- Start/stop heavy animations by using the `.am-i-in-view` and `.in-view` classes.
+
+## On using fonts
+
+You have two variables at your disposal, which will be generated when you run `yarn fontdata`. See the templates for some example on how to use them.
+
+### fontdata
+
+The `fontdata` variable containsall metadata from `_data/fontdata.json`. This file contains a list of all the fonts found in `src/fonts`, and offers the following variables per font:
+
+`name`, containing the font name (e.g. Bungee Regular)
+`selector`, the CSS selector to apply the font (e.g. bungee-regular)
+`style`, the suggested style of this font (e.g. regular)
+
+You can change the order of these fonts, so the font family tree makes sense when you loop over them in the specimen (e.g. light weights first, bold weights last). You can also rename the suggested style, which Specimen Skeleton tries to derive from the tfilename. You shouldn't change the selector though — this is used to apply the font in CSS, and to pick fonts from the `fonts` variable.
+
+You can specify which font is the "main" font (usually the "regular" style), by assigning its ID to the `main_id` variable. Note that counting starts at 0!
+
+### fonts
+
+The Specimen Skeleton loops over all fonts, and presents an object for each font with all data from the relevant `src/_data` files. This `font` variable contains its charset, variable axes and variable instances. You can address these by their `selector` from the `fontdata` variable:
+
+`{{ fonts["bungee-regular"].charset }}`
+
+## On using assets
+
+In HTML, to use an image from your `img` directory, use the following URL value with the relative path to your image:
+
+`<img src="{% webpackAssetPath '../img/my_logo.svg' %}">`
+
+If you want to inline an SVG image, use:
+
+`{% include '../img/my_logo.svg' %}`
+
+or
+
+`{% webpackAssetContents 'img/my_logo.svg' %}`
+
+In CSS, point to the file using the path relative to your CSS file:
+
+`background-image: url(../img/my_logo.svg);`
+
+In CSS, images below 8 KB will be inlined automatically. To force inlined or external, append `?inline` or `?external` respectively, e.g. `url(../img/my_logo.svg?external);`. Inlining in HTML files
+
+## Components
+
+The boilerplate has some very basic components you can base your specimen site on:
+
+### Interactive Controls
+
+Basic setup to have interactive axis sliders, as well as a dropdown with named instances. All elements with the class `.interactive-controls-text` inside the parent container `.interactive-controls` will respond to changes.
+
+### Character Grid
+
+Simple grid to show all characters in the font. On hover, the character will be shown in a separate `div`.
+
+### Am I in view?
+
+Simple example to stop CPU-melting animations when they're not in the viewport. Elements with the class `.am-i-in-view` will get a class `.in-view` when they're in the viewport, and have that class removed when they leave the viewport. Use this to start/stop heavy animations.
+
+Note: this can be repurposed for lazy loading images, pausing video, etc.
+
+## Stuff made with Specimen Skeleton
+
+- [Fraunces specimen site](https://fraunces.undercase.xyz/)
+- [Arapey specimen site](https://arapey.xyz/)
+- [Specimen Builder](https://typespecimens.xyz/builder/) by Mark Boulton ([demo](https://typespecimens.xyz/builder/demo/))
+</file>
+
+<file path="webpack.config.js">
+const path = require("path");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const ManifestPlugin = require("webpack-manifest-plugin");
+
+const env = process.env.NODE_ENV || "development";
+const isProd = env === "production";
+const input = path.resolve(__dirname, "src");
+const out = path.resolve(__dirname, "_site");
+const exclusions = /node_modules/;
+
+const inlineImgLimit = 8192;
+
+const optimization = {
+	splitChunks: isProd && { chunks: "all" },
+	minimize: isProd,
+	// prints more readable module names in the browser console on HMR updates, in dev
+	namedModules: !isProd,
+	// prevent emitting assets with errors, in dev
+	noEmitOnErrors: !isProd
+};
+
+const fileLoaderOptions = {
+	name: "[path][name].[hash].[ext]",
+	context: input
+};
+
+module.exports = {
+	mode: isProd ? "production" : "development",
+	entry: {
+		main: [
+			path.resolve(input, "js", "main.js"),
+			path.resolve(input, "css", "main.css")
+		]
+	},
+	output: {
+		path: out,
+		filename: "[name].[hash].js",
+		publicPath: "./"
+	},
+	module: {
+		rules: [
+			{
+				test: /\.js$/,
+				exclude: exclusions,
+				use: {
+					loader: "babel-loader",
+					options: {
+						presets: ["@babel/preset-env"]
+					}
+				}
+			},
+			{
+				test: /\.css$/,
+				exclude: exclusions,
+				use: [
+					{
+						loader: MiniCssExtractPlugin.loader
+					},
+					"css-loader",
+					"postcss-loader"
+				]
+			},
+			{
+				include: path.resolve(input, "fonts"),
+				use: [
+					{
+						loader: "file-loader",
+						options: fileLoaderOptions
+					}
+				]
+			},
+			{
+				test: /\.svg$/i,
+				oneOf: [
+					{
+						resourceQuery: /external/,
+						loader: "file-loader",
+						options: fileLoaderOptions
+					},
+					{
+						resourceQuery: /inline/,
+						loader: "svg-url-loader",
+						options: fileLoaderOptions
+					},
+					{
+						loader: "svg-url-loader",
+						options: {
+							...fileLoaderOptions,
+							limit: inlineImgLimit
+						}
+					}
+				]
+			},
+			{
+				test: /\.(png|jpg)$/i,
+				oneOf: [
+					{
+						resourceQuery: /external/,
+						loader: "file-loader",
+						options: fileLoaderOptions
+					},
+					{
+						resourceQuery: /inline/,
+						loader: "url-loader",
+						options: {
+							...fileLoaderOptions,
+							limit: true
+						}
+					},
+					{
+						loader: "url-loader",
+						options: {
+							...fileLoaderOptions,
+							limit: inlineImgLimit
+						}
+					}
+				]
+			}
+		]
+	},
+	devtool: isProd ? false : "eval",
+	optimization,
+	plugins: [
+		new MiniCssExtractPlugin({
+			filename: "styles.[contenthash].css",
+			ignoreOrder: false
+		}),
+		new ManifestPlugin({
+			fileName: path.resolve(
+				input,
+				"_includes",
+				".webpack",
+				"manifest.json"
+			),
+			map: file => {
+				switch (file.name) {
+					case "main.js":
+						file.name = "js/main.js";
+						break;
+					case "main.css":
+						file.name = "css/main.css";
+						break;
+					default:
+						// Strip queries like ?external from asset name
+						file.name = file.name.split("?")[0];
+				}
+
+				return file;
+			}
+		})
+	]
+};
+</file>
+
+</files>

@@ -105,33 +105,9 @@ for (const interactive of interactives) {
 	}
 }
 
-// Watch if .am-i-in-view elements are visible on screen
-// and apply a class accordingly
-if ("IntersectionObserver" in window) {
-	// eslint-disable-next-line compat/compat
-	const obs = new IntersectionObserver(els => {
-		els.forEach(el => {
-			el.intersectionRatio > 0
-				? el.target.classList.add("in-view")
-				: el.target.classList.remove("in-view");
-		});
-	});
-
-	const elements = document.querySelectorAll(".am-i-in-view");
-	elements.forEach(el => {
-		obs.observe(el);
-	});
-}
-
 // Character grid
 const grid = document.querySelector(".character-grid");
-const gridzoom = document.querySelector(".character-grid-zoom");
 const gridtoggle = document.querySelector(".character-grid-toggle");
-grid.onmousemove = throttle(e => {
-	if (e.target.tagName === "LI") {
-		gridzoom.innerHTML = e.target.innerHTML;
-	}
-}, 100);
 if (gridtoggle) {
 	gridtoggle.onchange = e => {
 		grid.classList.remove(...fontClasses);

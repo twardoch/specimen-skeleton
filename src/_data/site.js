@@ -6,31 +6,13 @@ module.exports = {
 	metatags: [
 		{
 			property: "og:title",
-			content: ""
+			content: "Specimen Skeleton" // Populated from site.title or a default
 		},
 		{
 			property: "og:description",
-			content: ""
-		},
-		{
-			property: "og:image",
-			content: ""
-		},
-		{
-			property: "og:url",
-			content: ""
-		},
-		{
-			property: "og:site_name",
-			content: ""
-		},
-		{
-			name: "twitter:card",
-			content: ""
-		},
-		{
-			name: "twitter:image:alt",
-			content: ""
+			content: "A small boilerplate for custom variable font specimen sites!" // Populated from site.description or a default
 		}
+		// Consider adding og:url if a canonical URL is known/important for MVP.
+		// Consider keeping og:image if a default image is available and desired.
 	]
 };
