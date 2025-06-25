@@ -33,7 +33,6 @@ A full-blown specimen generator like [Specimen Tools](https://github.com/graphic
 - Configure the site in `src/_data/site.js`.
 - In JavaScript, respond to fail/success of loading the font in the `FontFaceObserver` code.
 - In HTML/CSS, use the `.variable-support` element to communicate when variable fonts aren't supported.
-- Start/stop heavy animations by using the `.am-i-in-view` and `.in-view` classes.
 
 ## On using fonts
 
@@ -87,13 +86,7 @@ Basic setup to have interactive axis sliders, as well as a dropdown with named i
 
 ### Character Grid
 
-Simple grid to show all characters in the font. On hover, the character will be shown in a separate `div`.
-
-### Am I in view?
-
-Simple example to stop CPU-melting animations when they're not in the viewport. Elements with the class `.am-i-in-view` will get a class `.in-view` when they're in the viewport, and have that class removed when they leave the viewport. Use this to start/stop heavy animations.
-
-Note: this can be repurposed for lazy loading images, pausing video, etc.
+Simple grid to show all characters in the font.
 
 ## Stuff made with Specimen Skeleton
 
