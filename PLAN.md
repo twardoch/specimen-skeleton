@@ -1,101 +1,209 @@
-# MVP Streamlining Plan for Specimen Skeleton
+# Specimen Skeleton v2.0 Improvement Plan
 
-This document outlines the detailed steps to streamline the Specimen Skeleton project into a performant, focused v1.0 (MVP). The goal is to retain core functionality while removing or simplifying features that are non-essential for an initial release.
+This document outlines a comprehensive plan to modernize and enhance the Specimen Skeleton project, building upon the streamlined MVP v1.0. The improvements focus on stability, elegance, deployability, and developer experience.
 
-## 1. Analyze and Plan (Completed)
+## 1. Modernize Build System and Dependencies
 
-*   **Thoroughly review the codebase:** Analyzed project structure, dependencies, and key functionalities using the output of `npx repomix -o ./llms.txt .`. (Completed)
-*   **Identify core MVP features:** (Completed)
-    *   Loading and displaying custom WOFF2 variable fonts.
-    *   Interactive controls for variable font axes.
-    *   Selection and application of named font instances.
-    *   Display of the font's character set.
-    *   Clear indication of font loading status (success/failure).
-    *   Notification if the browser doesn't support variable fonts.
-    *   A robust build process (`yarn fontdata`, `yarn build`).
-*   **Identify non-essential features or areas for simplification for a focused v1.0:** (Completed)
-    *   The example animation and its associated IntersectionObserver logic.
-    *   The character grid's hover-to-zoom feature.
-    *   Extensive (and currently empty) social media meta tags.
-    *   Potentially overly complex image handling in Webpack if not utilized by core MVP.
-    *   Verbose comments that don't add significant value to clear code.
-*   **Create `PLAN.md`:** This document. (Completed)
-*   **Create `TODO.md`:** A checklist version of this plan. (Completed)
-*   **Initialize `CHANGELOG.md`:** Prepare for recording changes. (Completed)
+### Rationale
+The current build system uses outdated dependencies (Node 12, Webpack 4, Eleventy 0.9) which cause compatibility issues with modern Node versions and lack many performance optimizations.
 
-## 2. Streamline Non-Core Features (Completed)
+### Actions
+1. **Migrate to Vite** (from Webpack)
+   - Faster build times with native ES modules
+   - Built-in hot module replacement
+   - Better tree-shaking and code splitting
+   - Simpler configuration
+   
+2. **Update Eleventy to v2.x**
+   - Better performance
+   - Enhanced plugin ecosystem
+   - Improved error messages
+   
+3. **Update Node requirement to 18+**
+   - Use modern JavaScript features
+   - Better performance
+   - Active LTS support
 
-*   **Animation Feature Removal:** (Completed)
-    *   **Action:** Delete `src/_includes/animation.html`. (Completed)
-    *   **Rationale:** The animation is a demo of `IntersectionObserver` and not core to displaying font features.
-    *   **Action:** Delete `src/css/animation.css`. (Completed)
-    *   **Rationale:** Styles for the removed animation.
-    *   **Action:** Remove the import of `animation.css` from `src/css/main.css`. (Completed)
-    *   **Rationale:** Unnecessary import.
-    *   **Action:** Remove JavaScript related to `.am-i-in-view` and `IntersectionObserver` from `src/js/main.js`. (Completed)
-    *   **Rationale:** This JS was primarily for the example animation.
-    *   **Action:** Remove the inclusion of `animation.html` from `src/index.html`. (Completed)
-    *   **Rationale:** Remove the partial from the main page.
+4. **Replace deprecated dependencies**
+   - Migrate from node-sass to dart-sass
+   - Update all security-vulnerable packages
+   - Use native CSS nesting where possible
 
-*   **Character Grid Zoom Effect Removal:** (Completed)
-    *   **Action:** Remove the hover-to-zoom JavaScript functionality from `src/js/main.js`. (Completed)
-    *   **Rationale:** Simplifies the character grid interaction to its core function of displaying characters.
-    *   **Action:** Remove the `.character-grid-zoom` div from `src/_includes/character-grid.html`. (Completed)
-    *   **Rationale:** The display element for the zoom effect is no longer needed.
-    *   **Action:** Remove CSS related to `.character-grid-zoom` from `src/css/character-grid.css`. (Completed)
-    *   **Rationale:** Styles for the removed element.
+## 2. Enhance Developer Experience
 
-*   **Social Meta Tags Simplification:** (Completed)
-    *   **Action:** Edit `src/_data/site.js` to remove empty/non-essential `og:*` and `twitter:*` meta tags. (Completed)
-    *   **Rationale:** Reduces configuration clutter and focuses on essential metadata for an MVP.
+### TypeScript Support
+- Add TypeScript configuration
+- Convert JavaScript files to TypeScript
+- Add type definitions for font data structures
+- Enable strict type checking
 
-## 3. Code & Configuration Refinements (Completed)
+### Development Tools
+- Add ESLint with modern configuration
+- Add Prettier with consistent formatting rules
+- Add husky for pre-commit hooks
+- Add commitlint for conventional commits
 
-*   **Review `webpack.config.js` for Image Handling:** (Completed)
-    *   **Action:** Examine the image loading rules in `webpack.config.js`. (Completed)
-    *   **Assessment:** The current setup offers flexibility. (Completed)
-    *   **Decision (Conservative Approach):** Leave as is. (Completed)
-    *   **Rationale:** Avoid premature optimization.
+### Error Handling
+- Add comprehensive error boundaries
+- Improve font loading error messages
+- Add fallback UI for unsupported browsers
+- Add development error overlay
 
-*   **Review Comments:** (Completed)
-    *   **Action:** Scan through key JavaScript files, `.eleventy.js`, and `webpack.config.js`. (Completed)
-    *   **Action:** Trim comments that are merely restating obvious code. (Completed - No overly verbose comments found that required trimming)
-    *   **Rationale:** Improve code readability.
+## 3. Improve Performance
 
-*   **Consolidate CSS (Minor Optimization):** (Completed)
-    *   **Action:** Review CSS files like `variable-support.css` and `loading.css`. (Completed)
-    *   **Assessment:** Files are small but modular. (Completed)
-    *   **Decision:** Do not merge at this point. (Completed)
-    *   **Rationale:** Current separation is logical.
+### Font Loading Optimization
+- Implement progressive font loading
+- Add font subsetting capabilities
+- Use CSS font-display for better perceived performance
+- Add preload hints for critical fonts
 
-## 4. Build and Test (Completed)
+### Code Splitting
+- Split vendor code from application code
+- Lazy load interactive components
+- Implement route-based code splitting
+- Add resource hints (prefetch/preconnect)
 
-*   **Action:** Run `yarn fontdata` after making changes. (Completed - Note: Encountered missing font files, but script execution path tested. Dependencies installed.)
-    *   **Expected:** Script completes successfully.
-*   **Action:** Run `yarn build`. (Completed - Required `NODE_OPTIONS=--openssl-legacy-provider` due to Node version mismatch with project's original target.)
-    *   **Expected:** Build completes without errors.
-*   **Action:** Manually test the generated site. (Completed - Performed as much as possible without browser/font file. Structural integrity and absence of removed features confirmed.)
-    *   Verify font loading and correct display. (Assumption based)
-    *   Test interactive axis sliders. (Assumption based)
-    *   Test named instance selection. (Assumption based)
-    *   Verify character grid displays characters. (Assumption based)
-    *   Confirm removed features are no longer present. (Structurally confirmed)
-    *   Check console for any errors. (Assumption based - build was clean)
-    *   Ensure basic layout and styling are intact. (Structurally confirmed)
+### Caching Strategy
+- Implement service worker with workbox
+- Add cache-first strategy for fonts
+- Use stale-while-revalidate for assets
+- Add offline support
 
-## 5. Documentation & Finalization (Completed)
+## 4. Deployment and Installation
 
-*   **Action:** Update `README.md`: (Completed)
-    *   Remove sections or mentions related to the animation example and character grid zoom.
-    *   Ensure instructions for `yarn fontdata` and `yarn start`/`yarn build` are still accurate.
-    *   Verify that descriptions of `fontdata` and `fonts` variables are still correct.
-*   **Action:** Mark all completed items in `PLAN.md` (this document) and `TODO.md`. (Completed)
-*   **Action:** Ensure `CHANGELOG.md` comprehensively lists all changes made during the streamlining process. (Completed)
+### Containerization
+- Add Dockerfile for consistent environments
+- Add docker-compose for local development
+- Include production-optimized container builds
+- Add health check endpoints
 
-## 6. Submit Changes (Pending)
+### CI/CD Pipeline
+- Enable and update GitHub Actions workflow
+- Add automated testing in CI
+- Add automated dependency updates
+- Add release automation with semantic versioning
 
-*   **Action:** Stage all modified and created files.
-*   **Action:** Commit changes with a clear and descriptive message, e.g., "Refactor: Streamline project for MVP v1.0".
-*   **Action:** Propose a branch name like `refactor/mvp-streamline`.
+### Platform-Specific Deployments
+- Add Netlify configuration
+- Add Vercel configuration  
+- Add AWS S3/CloudFront deployment guide
+- Add nginx configuration example
 
-This plan aims for a balance between significant streamlining for an MVP and retaining the robust core functionality of the Specimen Skeleton.
+### Environment Configuration
+- Add .env support for configuration
+- Add environment-specific builds
+- Add configuration validation
+- Document all environment variables
+
+## 5. Code Quality and Testing
+
+### Testing Framework
+- Add Vitest for unit testing
+- Add Playwright for E2E testing
+- Add visual regression testing
+- Achieve 80%+ code coverage
+
+### Code Organization
+- Refactor into clear module boundaries
+- Extract reusable components
+- Add proper abstraction layers
+- Implement SOLID principles
+
+### Documentation
+- Add JSDoc comments to all functions
+- Create architecture documentation
+- Add contributing guidelines
+- Create troubleshooting guide
+
+## 6. Feature Enhancements
+
+### User Interface
+- **Dark Mode Support**
+  - Auto-detect system preference
+  - Add toggle switch
+  - Persist user preference
+  - Smooth transitions
+
+- **Copy Functionality**
+  - Copy character codes on click
+  - Copy CSS for current settings
+  - Copy axis values
+  - Show copy confirmation
+
+- **Enhanced Controls**
+  - Add axis value reset buttons
+  - Add preset management (save/load)
+  - Add URL state persistence
+  - Add keyboard shortcuts
+
+### Export Capabilities
+- Export specimen as PDF
+- Export font settings as JSON
+- Generate specimen images
+- Create shareable links
+
+### Accessibility
+- Add ARIA labels to all controls
+- Ensure keyboard navigation
+- Add skip links
+- Test with screen readers
+
+## 7. Migration Strategy
+
+### Phase 1: Foundation (Week 1-2)
+- Set up new build system with Vite
+- Migrate to TypeScript
+- Update all dependencies
+- Ensure feature parity
+
+### Phase 2: Enhancement (Week 3-4)
+- Add testing framework
+- Implement dark mode
+- Add copy functionality
+- Improve error handling
+
+### Phase 3: Performance (Week 5-6)
+- Implement code splitting
+- Add service worker
+- Optimize font loading
+- Add caching strategies
+
+### Phase 4: Deployment (Week 7-8)
+- Set up Docker
+- Configure CI/CD
+- Add deployment guides
+- Update documentation
+
+## 8. Breaking Changes
+
+### For Users
+- Minimum Node version increased to 18
+- Build commands changed (npm scripts updated)
+- Configuration file format changed
+- Some CSS classes renamed for consistency
+
+### For Contributors
+- TypeScript required for new code
+- Tests required for new features
+- Conventional commits enforced
+- Code review required for all PRs
+
+## 9. Success Metrics
+
+- Build time reduced by 70%
+- Page load time < 2 seconds
+- Lighthouse score > 95
+- Zero security vulnerabilities
+- 80%+ test coverage
+- Deployment time < 5 minutes
+
+## 10. Future Considerations
+
+- WebAssembly for font processing
+- AI-powered font pairing suggestions
+- Collaborative specimen editing
+- Plugin system for extensions
+- Multi-font comparison view
+- Integration with font foundry APIs
+
+This plan transforms Specimen Skeleton from a basic boilerplate into a modern, robust, and extensible font specimen platform while maintaining its core simplicity and ease of use.

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Fixed build scripts on macOS by adding single quotes to glob patterns in package.json (`build:*` and `start:*` commands)
+
+### Security
+- Updated dependencies to address security vulnerabilities:
+  - Bump pug-code-gen from 2.0.2 to 2.0.3
+  - Bump elliptic from vulnerable version to 6.5.4
+  - Bump ssri from 6.0.1 to 6.0.2
+  - Bump handlebars from 4.5.3 to 4.7.7
+  - Bump lodash from 4.17.19 to 4.17.21
+  - Bump hosted-git-info from 2.8.5 to 2.8.9
+  - Bump postcss from 7.0.23 to 8.2.10
+  - Bump dot-prop from vulnerable version to 4.2.1
+  - Bump browserslist from 4.7.3 to 4.16.6
+  - Bump y18n from vulnerable version to 3.2.2
+
 ## [1.0.0-alpha.1] - 2024-06-25
 
 ### Changed

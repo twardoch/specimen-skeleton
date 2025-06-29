@@ -1,44 +1,118 @@
-# Specimen Skeleton MVP Streamlining TODO
+# Specimen Skeleton v2.0 TODO
 
-- [x] **PLANNING COMPLETE** - Initial analysis and plan creation.
+## Phase 1: Foundation
+- [ ] **Modernize Build System**
+  - [ ] Migrate from Webpack to Vite
+  - [ ] Update Eleventy from 0.9 to 2.x
+  - [ ] Update Node requirement from 12 to 18+
+  - [ ] Update all dependencies to latest stable versions
+  - [ ] Replace node-sass with dart-sass
+  - [ ] Fix build issues without OpenSSL legacy provider
+  
+- [ ] **Add TypeScript Support**
+  - [ ] Add TypeScript configuration
+  - [ ] Convert main.js to TypeScript
+  - [ ] Convert generateFontData.js to TypeScript
+  - [ ] Add type definitions for font data
+  - [ ] Enable strict type checking
 
-- [x] **STREAMLINE NON-CORE FEATURES**
-    - [x] **Animation Feature Removal**
-        - [x] Delete `src/_includes/animation.html`
-        - [x] Delete `src/css/animation.css`
-        - [x] Remove `animation.css` import from `src/css/main.css`
-        - [x] Remove IntersectionObserver JS from `src/js/main.js` (if only for animation)
-        - [x] Remove `animation.html` include from `src/index.html`
-    - [x] **Character Grid Zoom Effect Removal**
-        - [x] Remove hover-to-zoom JS from `src/js/main.js`
-        - [x] Remove `.character-grid-zoom` div from `src/_includes/character-grid.html`
-        - [x] Remove `.character-grid-zoom` CSS from `src/css/character-grid.css`
-    - [x] **Social Meta Tags Simplification**
-        - [x] Simplify `og:*` and `twitter:*` tags in `src/_data/site.js`
+## Phase 2: Developer Experience
+- [ ] **Development Tools**
+  - [ ] Configure ESLint with modern rules
+  - [ ] Set up Prettier for code formatting
+  - [ ] Configure husky for pre-commit hooks
+  - [ ] Add commitlint for conventional commits
+  - [ ] Add hot module replacement
+  
+- [ ] **Error Handling**
+  - [ ] Add comprehensive error boundaries
+  - [ ] Improve font loading error messages
+  - [ ] Add fallback UI for unsupported browsers
+  - [ ] Add development error overlay
 
-- [x] **CODE & CONFIGURATION REFINEMENTS**
-    - [x] **Review `webpack.config.js` for Image Handling** (Decision: Leave as is for now)
-    - [x] **Review Comments**
-        - [x] Trim verbose/obvious comments in JS, Eleventy, Webpack files (No major trimming needed)
-    - [x] **Consolidate CSS (Minor Optimization)**
-        - [x] Assess if `variable-support.css` or `loading.css` can be merged (Decision: No merge)
+## Phase 3: Performance
+- [ ] **Font Loading Optimization**
+  - [ ] Implement progressive font loading
+  - [ ] Add CSS font-display property
+  - [ ] Add preload hints for fonts
+  - [ ] Implement font subsetting option
+  
+- [ ] **Code Splitting & Caching**
+  - [ ] Split vendor from application code
+  - [ ] Lazy load interactive components
+  - [ ] Add service worker with workbox
+  - [ ] Implement offline support
 
-- [x] **BUILD AND TEST**
-    - [x] Run `yarn fontdata` successfully (Note: actual run showed missing font files, but process itself was tested, dependencies installed)
-    - [x] Run `yarn build` successfully (with NODE_OPTIONS workaround)
-    - [x] Manually test site:
-        - [x] Font loads and displays (Assumption based)
-        - [x] Axis sliders work (Assumption based)
-        - [x] Named instances work (Assumption based)
-        - [x] Character grid displays (no zoom) (Assumption based)
-        - [x] Removed features are gone, no errors (Structurally confirmed)
-        - [x] Console clear of errors (Assumption based, build clean)
+## Phase 4: Features
+- [ ] **Dark Mode**
+  - [ ] Add CSS custom properties for theming
+  - [ ] Detect system color scheme preference
+  - [ ] Add theme toggle button
+  - [ ] Persist theme preference
+  
+- [ ] **Copy Functionality**
+  - [ ] Add copy buttons to character grid
+  - [ ] Copy current CSS settings
+  - [ ] Copy axis values
+  - [ ] Show copy confirmation toast
+  
+- [ ] **Enhanced Controls**
+  - [ ] Add reset buttons for axes
+  - [ ] Save/load axis presets
+  - [ ] Persist settings in URL
+  - [ ] Add keyboard shortcuts
 
-- [x] **DOCUMENTATION & FINALIZATION**
-    - [x] Update `README.md` (remove mentions of removed features)
-    - [x] Mark all items in `PLAN.md` and `TODO.md` as complete (This action)
-    - [ ] Finalize `CHANGELOG.md` (Next action)
+## Phase 5: Testing & Quality
+- [ ] **Testing Framework**
+  - [ ] Set up Vitest for unit tests
+  - [ ] Add tests for font data generation
+  - [ ] Add tests for interactive controls
+  - [ ] Set up Playwright for E2E tests
+  - [ ] Add visual regression tests
+  
+- [ ] **Documentation**
+  - [ ] Add JSDoc comments
+  - [ ] Create architecture guide
+  - [ ] Write contributing guidelines
+  - [ ] Add troubleshooting guide
 
-- [ ] **SUBMIT CHANGES**
-    - [ ] Commit changes with message "Refactor: Streamline project for MVP v1.0"
-    - [ ] Use branch `refactor/mvp-streamline`
+## Phase 6: Deployment
+- [ ] **Containerization**
+  - [ ] Create Dockerfile
+  - [ ] Add docker-compose.yml
+  - [ ] Add production build optimization
+  - [ ] Create health check endpoint
+  
+- [ ] **CI/CD & Platform Support**
+  - [ ] Enable GitHub Actions workflow
+  - [ ] Add automated tests to CI
+  - [ ] Add Netlify configuration
+  - [ ] Add Vercel configuration
+  - [ ] Create deployment guides
+  
+- [ ] **Environment Configuration**
+  - [ ] Add .env support
+  - [ ] Add environment validation
+  - [ ] Document all env variables
+  - [ ] Add example configurations
+
+## Phase 7: Accessibility & UX
+- [ ] **Accessibility**
+  - [ ] Add ARIA labels to controls
+  - [ ] Ensure keyboard navigation
+  - [ ] Add skip links
+  - [ ] Test with screen readers
+  
+- [ ] **Export Features**
+  - [ ] Export specimen as PDF
+  - [ ] Export settings as JSON
+  - [ ] Generate shareable links
+  - [ ] Create specimen images
+
+## Future Enhancements (Post v2.0)
+- [ ] WebAssembly font processing
+- [ ] AI font pairing suggestions
+- [ ] Collaborative editing
+- [ ] Plugin system
+- [ ] Multi-font comparison
+- [ ] Font foundry API integration
